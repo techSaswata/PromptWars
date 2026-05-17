@@ -4,6 +4,17 @@ AI contract intelligence for extracting legal text, identifying risk signals, an
 
 Live deployment: [https://lexguard-6ucd5lskna-el.a.run.app](https://lexguard-6ucd5lskna-el.a.run.app)
 
+## How to Use
+
+| Action | Where | Result |
+| --- | --- | --- |
+| Open the app | `/` | Landing page with the product summary and workspace CTA |
+| Start review | `/workspace` | Upload panel and contract text editor |
+| Upload a document | Workspace upload card | Extracts TXT, PDF, DOCX, PNG, JPG, JPEG, or WEBP into editable text |
+| Paste text | Contract text editor | Bypasses extraction and sends the text directly to analysis |
+| Analyze | `Analyze Contract` button | Produces the visual risk report with flags, coverage, negotiation actions, scenarios, and evidence check |
+| Reload after analysis | Same browser | Restores the last completed report from local storage |
+
 ## Architecture
 
 LEXGUARD is a Next.js app with a deterministic analysis core and an optional LLM enhancement layer. The deterministic layer owns coverage, evidence extraction, baseline scoring, missing-term detection, and uncertainty reporting. The LLM layer is constrained to improve language, confidence, decision labels, and negotiation framing from that baseline rather than inventing unsupported conclusions.
@@ -115,6 +126,16 @@ The LLM output is parsed through Zod and clipped to UI-safe limits. If parsing f
 | Raw text in database | Not stored by the persistence layer |
 | LLM context | Receives the contract text clipped to 32k characters plus deterministic baseline |
 | Validation | API input and model output are schema-checked before use |
+
+## Testing Surface
+
+| Command | Coverage |
+| --- | --- |
+| `npm test` | Node test suite for deterministic analysis and analyze API validation |
+| `npm run lint` | ESLint and React/Next static checks |
+| `npm run typecheck` | TypeScript contract validation across app, API, and tests |
+
+Current tests cover normalization, risk finding detection, confidence filtering, extraction metadata cleanup, dynamic risk-axis generation, and typed API input errors.
 
 ## Deployment Shape
 
