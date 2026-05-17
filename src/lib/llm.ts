@@ -5,6 +5,14 @@ import type { AnalysisReport } from "./types";
 const llmReportSchema = z.object({
   summary: z.string().min(20),
   executiveDecision: z.enum(["safe-to-review", "negotiate-first", "do-not-sign-yet"]),
+  decisionDisplay: z
+    .object({
+      title: z.string().min(2).max(32),
+      badge: z.string().min(2).max(32),
+      stages: z.tuple([z.string().min(2).max(18), z.string().min(2).max(18), z.string().min(2).max(18)]),
+      activeStage: z.number().int().min(0).max(2)
+    })
+    .optional(),
   negotiationPlaybook: z.array(z.string()).min(1),
   trustLedger: z.array(z.string()).min(1),
   findingSignals: z
@@ -102,8 +110,9 @@ Reasoning lenses to apply dynamically, only when relevant:
 - negotiation map: smallest concrete change that reduces the risk
 - evidence audit: whether each conclusion is supported by quoted text
 
-Return strict JSON matching this shape: {"summary":"...","executiveDecision":"safe-to-review|negotiate-first|do-not-sign-yet","negotiationPlaybook":["..."],"trustLedger":["..."],"findingSignals":[{"id":"same finding id from baseline","impact":"2-4 words","ask":"2-4 words","counter":"2-4 words","position":"2-4 words","confidence":0.87}]}.
+Return strict JSON matching this shape: {"summary":"...","executiveDecision":"safe-to-review|negotiate-first|do-not-sign-yet","decisionDisplay":{"title":"contract-specific 2-4 words","badge":"short action label","stages":["stage one","stage two","stage three"],"activeStage":0},"negotiationPlaybook":["..."],"trustLedger":["..."],"findingSignals":[{"id":"same finding id from baseline","impact":"2-4 words","ask":"2-4 words","counter":"2-4 words","position":"2-4 words","confidence":0.87}]}.
 Keep negotiationPlaybook to at most 8 items and trustLedger to at most 10 items.
+For decisionDisplay, do not use generic fixed labels. Make title, badge, and stages fit this contract's actual risks. activeStage is 0 for reviewable, 1 for negotiate-first, 2 for blocker-level.
 For findingSignals, return one item per baseline finding id. Each label must be specific to that flagged clause, not generic words like Impact, Ask, Counter, or Position.
 For confidence, return a decimal from 0 to 1 based on exact evidence strength, clause specificity, and ambiguity. Do not copy the baseline confidence for every finding.
 
@@ -152,6 +161,14 @@ ${JSON.stringify({
   return {
     summary: parsed.summary,
     executiveDecision: parsed.executiveDecision,
+    decisionDisplay: parsed.decisionDisplay
+      ? {
+          title: compactDecisionText(parsed.decisionDisplay.title),
+          badge: compactDecisionText(parsed.decisionDisplay.badge),
+          stages: parsed.decisionDisplay.stages.map(compactDecisionText) as [string, string, string],
+          activeStage: parsed.decisionDisplay.activeStage
+        }
+      : undefined,
     negotiationPlaybook: parsed.negotiationPlaybook.slice(0, 8),
     trustLedger: parsed.trustLedger.slice(0, 10),
     findingSignals: parsed.findingSignals
@@ -193,6 +210,11 @@ function compactSignal(value: string) {
 
   const words = compact.split(" ").slice(0, 4).join(" ");
   return words.length <= 28 ? words : `${compact.slice(0, 25).trim()}...`;
+}
+
+function compactDecisionText(value: string) {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length <= 32 ? compact : `${compact.slice(0, 29).trim()}...`;
 }
 
 async function callOpenAi(messages: Array<{ role: "system" | "user"; content: string }>) {

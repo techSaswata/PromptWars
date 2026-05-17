@@ -75,6 +75,12 @@ export type MissingTerm = {
 export type AnalysisReport = {
   contractType: string;
   executiveDecision: "safe-to-review" | "negotiate-first" | "do-not-sign-yet";
+  decisionDisplay?: {
+    title: string;
+    badge: string;
+    stages: [string, string, string];
+    activeStage: number;
+  };
   riskScore: number;
   summary: string;
   inputStats: {

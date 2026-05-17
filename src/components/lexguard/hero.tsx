@@ -1,4 +1,5 @@
-import { BrainCircuit, CheckCircle2, Lock, Radar, Scale, ShieldAlert } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, BrainCircuit, CheckCircle2, Lock, Radar, Scale, ShieldAlert } from "lucide-react";
 
 const featureCards = [
   ["Clause intelligence", BrainCircuit, "from-cyan-400 to-blue-500"],
@@ -37,6 +38,13 @@ export function Hero() {
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
+            <Link
+              href="/workspace"
+              className="group inline-flex items-center gap-2 rounded-2xl border border-cyan-300/40 bg-cyan-300 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_35px_rgba(103,232,249,0.18)] transition-all hover:-translate-y-0.5 hover:bg-white"
+            >
+              Start review
+              <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+            </Link>
             <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.1)]">
               <CheckCircle2 size={17} />
               Private review workspace

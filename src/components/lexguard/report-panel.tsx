@@ -1,4 +1,4 @@
-import { Activity, Bot, FileSearch, Gauge, Radar, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, Bot, FileSearch, Radar, ShieldCheck, Sparkles } from "lucide-react";
 import type { AnalysisReport } from "@/lib/types";
 import { CoverageMap } from "./coverage-map";
 import { DecisionCard } from "./decision-card";
@@ -165,19 +165,7 @@ export function ReportPanel({ report, loading }: ReportPanelProps) {
   }
 
   if (!report) {
-    return (
-      <section className="black-panel flex min-h-[720px] items-center justify-center rounded-4xl p-6">
-        <div className="max-w-md text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-linear-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-500/20">
-            <Gauge className="text-fuchsia-200" size={42} />
-          </div>
-          <h2 className="glow-text mt-6 text-2xl font-bold tracking-tight">Risk report waiting</h2>
-          <p className="mt-3 text-slate-400">
-            Upload or paste a contract to reveal severity, leverage, missing terms, and negotiation strategy.
-          </p>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   return (
