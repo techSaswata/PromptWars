@@ -624,33 +624,94 @@ function buildRiskAxes(
   missingTerms: MissingTerm[],
   uncertaintyNotes: UncertaintyNote[]
 ): RiskAxis[] {
-  const axes = [
-    { name: "Financial Exposure", categories: ["liability", "payment", "renewal"] },
-    { name: "Exit Control", categories: ["termination", "renewal", "employment"] },
-    { name: "Rights Transfer", categories: ["ip", "confidentiality"] },
-    { name: "Dispute Leverage", categories: ["arbitration", "governing-law"] },
-    { name: "Data & Privacy", categories: ["privacy", "compliance"] },
-    { name: "Drafting Ambiguity", categories: ["ambiguity"] }
-  ];
+  const grouped = new Map<ClauseCategory, ClauseFinding[]>();
 
-  return axes.map((axis) => {
-    const matched = findings.filter((finding) => axis.categories.includes(finding.category));
-    const score = Math.min(
-      100,
-      matched.reduce((sum, finding) => sum + severityWeight(finding.severity) * 18, 0) +
-        missingTerms.length * 4 +
-        uncertaintyNotes.length * 2
-    );
-
-    return {
-      name: axis.name,
-      score,
-      rationale:
-        matched.length > 0
-          ? `${matched.length} related issue${matched.length === 1 ? "" : "s"} detected.`
-          : "No strong signal detected in this pass."
-    };
+  findings.forEach((finding) => {
+    grouped.set(finding.category, [...(grouped.get(finding.category) ?? []), finding]);
   });
+
+  const axes = Array.from(grouped.entries())
+    .map(([category, categoryFindings]) => {
+      const leadFinding = categoryFindings.reduce((lead, finding) =>
+        severityWeight(finding.severity) * finding.confidence > severityWeight(lead.severity) * lead.confidence
+          ? finding
+          : lead
+      );
+      const score = Math.min(
+        100,
+        Math.round(
+          categoryFindings.reduce(
+            (sum, finding) => sum + severityWeight(finding.severity) * 14 * finding.confidence,
+            0
+          ) +
+            missingTerms.filter((term) => termMatchesCategory(term, category)).length * 8 +
+            uncertaintyNotes.length * 1.5
+        )
+      );
+
+      return {
+        name: riskAxisName(leadFinding),
+        score,
+        rationale: `${categoryFindings.length} signal${categoryFindings.length === 1 ? "" : "s"}: ${leadFinding.title}.`
+      };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  const missingTermAxes = missingTerms
+    .filter((term) => !axes.some((axis) => axis.rationale.toLowerCase().includes(term.term.toLowerCase())))
+    .slice(0, Math.max(0, 6 - axes.length))
+    .map((term) => ({
+      name: titleCase(term.term),
+      score: Math.min(100, 42 + uncertaintyNotes.length * 3),
+      rationale: `Missing protection: ${term.risk}`
+    }));
+
+  const result = [...axes, ...missingTermAxes].slice(0, 7);
+
+  return result.length
+    ? result
+    : [
+        {
+          name: "No Dominant Signal",
+          score: uncertaintyNotes.length ? 28 : 12,
+          rationale: uncertaintyNotes.length
+            ? "Input quality limits confidence; manual review is still needed."
+            : "No strong deterministic risk cluster was detected."
+        }
+      ];
+}
+
+function riskAxisName(finding: ClauseFinding) {
+  const evidence = finding.evidence.toLowerCase();
+
+  if (/indemn|hold harmless|liabil|damages|attorneys'? fees/.test(evidence)) return "Indemnity Exposure";
+  if (/late|fee|payment|invoice|interest|collection/.test(evidence)) return "Payment Pressure";
+  if (/terminate|termination|suspend|survive|access/.test(evidence)) return "Termination Control";
+  if (/renew|cancel|notice period/.test(evidence)) return "Renewal Lock-In";
+  if (/assign|ownership|work product|source code|invention|derivative/.test(evidence)) return "Ownership Transfer";
+  if (/arbitration|class action|jury|venue|dispute/.test(evidence)) return "Forum Leverage";
+  if (/personal data|privacy|third.?party|subprocessor|retain|delete/.test(evidence)) return "Data Handling";
+  if (/sole discretion|from time to time|as determined|including but not limited/.test(evidence)) return "Open Discretion";
+  if (/competing|moonlighting|non-compete|noncompete|non-solicit/.test(evidence)) return "Post-Exit Restriction";
+
+  return titleCase(finding.title.replace(/\bor\b/gi, "/").split("/")[0]);
+}
+
+function termMatchesCategory(term: MissingTerm, category: ClauseCategory) {
+  const text = `${term.term} ${term.risk} ${term.suggestedQuestion}`.toLowerCase();
+  const keywords: Partial<Record<ClauseCategory, string[]>> = {
+    liability: ["liability", "cap", "claim", "exposure"],
+    payment: ["payment", "fee", "cost", "refund"],
+    privacy: ["data", "breach", "delete", "retention"],
+    termination: ["termination", "terminate", "exit", "cure"],
+    renewal: ["renewal", "cancel"],
+    arbitration: ["venue", "dispute", "jurisdiction", "law"],
+    "governing-law": ["venue", "jurisdiction", "law"],
+    ip: ["assignment", "transfer"],
+    ambiguity: ["notice", "method"]
+  };
+
+  return (keywords[category] ?? []).some((keyword) => text.includes(keyword));
 }
 
 function calculateRiskScore(

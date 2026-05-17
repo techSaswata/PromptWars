@@ -13,6 +13,17 @@ const llmReportSchema = z.object({
       activeStage: z.number().int().min(0).max(2)
     })
     .optional(),
+  riskAxes: z
+    .array(
+      z.object({
+        name: z.string().min(2).max(32),
+        score: z.number().min(0).max(100),
+        rationale: z.string().min(8).max(140)
+      })
+    )
+    .min(1)
+    .max(8)
+    .optional(),
   negotiationPlaybook: z.array(z.string()).min(1),
   trustLedger: z.array(z.string()).min(1),
   findingSignals: z
@@ -42,6 +53,7 @@ export async function analyzeWithOptionalLlm(text: string, fileName?: string): P
     return {
       ...baseline,
       ...enhanced,
+      riskAxes: enhanced.riskAxes ?? baseline.riskAxes,
       findings: mergeFindingSignals(baseline.findings, enhanced.findingSignals),
       source: "llm-enhanced"
     };
@@ -110,9 +122,10 @@ Reasoning lenses to apply dynamically, only when relevant:
 - negotiation map: smallest concrete change that reduces the risk
 - evidence audit: whether each conclusion is supported by quoted text
 
-Return strict JSON matching this shape: {"summary":"...","executiveDecision":"safe-to-review|negotiate-first|do-not-sign-yet","decisionDisplay":{"title":"contract-specific 2-4 words","badge":"short action label","stages":["stage one","stage two","stage three"],"activeStage":0},"negotiationPlaybook":["..."],"trustLedger":["..."],"findingSignals":[{"id":"same finding id from baseline","impact":"2-4 words","ask":"2-4 words","counter":"2-4 words","position":"2-4 words","confidence":0.87}]}.
+Return strict JSON matching this shape: {"summary":"...","executiveDecision":"safe-to-review|negotiate-first|do-not-sign-yet","decisionDisplay":{"title":"contract-specific 2-4 words","badge":"short action label","stages":["stage one","stage two","stage three"],"activeStage":0},"riskAxes":[{"name":"contract-specific risk label","score":87,"rationale":"short evidence-grounded reason"}],"negotiationPlaybook":["..."],"trustLedger":["..."],"findingSignals":[{"id":"same finding id from baseline","impact":"2-4 words","ask":"2-4 words","counter":"2-4 words","position":"2-4 words","confidence":0.87}]}.
 Keep negotiationPlaybook to at most 8 items and trustLedger to at most 10 items.
 For decisionDisplay, do not use generic fixed labels. Make title, badge, and stages fit this contract's actual risks. activeStage is 0 for reviewable, 1 for negotiate-first, 2 for blocker-level.
+For riskAxes, return 4-7 axes based on actual flagged content. Do not use canned labels like Financial Exposure, Exit Control, Rights Transfer, Dispute Leverage, Data & Privacy, or Drafting Ambiguity unless that exact language appears in the contract. Scores must vary with evidence strength and severity.
 For findingSignals, return one item per baseline finding id. Each label must be specific to that flagged clause, not generic words like Impact, Ask, Counter, or Position.
 For confidence, return a decimal from 0 to 1 based on exact evidence strength, clause specificity, and ambiguity. Do not copy the baseline confidence for every finding.
 
@@ -169,6 +182,11 @@ ${JSON.stringify({
           activeStage: parsed.decisionDisplay.activeStage
         }
       : undefined,
+    riskAxes: parsed.riskAxes?.map((axis) => ({
+      name: compactDecisionText(axis.name),
+      score: Math.round(axis.score),
+      rationale: axis.rationale.replace(/\s+/g, " ").trim()
+    })),
     negotiationPlaybook: parsed.negotiationPlaybook.slice(0, 8),
     trustLedger: parsed.trustLedger.slice(0, 10),
     findingSignals: parsed.findingSignals

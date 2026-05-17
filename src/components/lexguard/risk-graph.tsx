@@ -24,6 +24,10 @@ const glowColors = [
 
 export function RiskGraph({ axes }: { axes: RiskAxis[] }) {
   const total = axes.reduce((sum, axis) => sum + axis.score, 0) || 1;
+  const primaryAxis = axes.reduce<RiskAxis | null>(
+    (highest, axis) => (!highest || axis.score > highest.score ? axis : highest),
+    null
+  );
   const segments = axes
     .reduce<{ cumulative: number; segments: string[] }>(
       (state, axis, index) => {
@@ -58,9 +62,9 @@ export function RiskGraph({ axes }: { axes: RiskAxis[] }) {
             style={{ background: `conic-gradient(${segments.join(", ")})` }}
           >
             <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-center">
-              <span className="text-4xl font-black text-white">{Math.round(total / axes.length)}</span>
+              <span className="text-4xl font-black text-white">{primaryAxis?.score ?? 0}</span>
               <span className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                avg risk
+                {primaryAxis ? primaryAxis.name : "no risk"}
               </span>
             </div>
           </div>
